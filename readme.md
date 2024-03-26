@@ -1,6 +1,6 @@
 # DBC to Header File Converter
 
-This python reads a dbc file using the cantools library then generates generic header C file with the CAN_SIG_ENCODE, CAN_SIG_DECODE and CAN_SIG_IS_VALID macros.
+This python reads a dbc file using the cantools library then generates generic header C file with the CAN_SIG_ENCODE, CAN_SIG_DECODE, CAN_SIG_IS_VALID and CAN_GET_VALUE_BY_NAME macros.
 
 ## Example:
 
