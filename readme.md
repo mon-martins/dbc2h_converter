@@ -4,10 +4,12 @@ This python reads a dbc file using the cantools library then generates generic h
 
 ## Example:
 
+Terminal: cd Path_to_generate_header_files & python "Path_to_dbc2h_converter/dbc2hconverter.py" "Path_to_dbc_folder/" "node_name" 
+
+On code:
+
 - message name: MY_MESSAGE
 - signal name: MY_SIGNAL
-
-usage:
 
 ### Receiving:
 
