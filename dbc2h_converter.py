@@ -56,8 +56,8 @@ for file in dbc_files:
 
     header.write( "\n")
     header.write( "\n")
-    header.write( f"#define CAN_MSG_RECEIVE_ID {receive_id}\n")
-    header.write( f"#define CAN_MSG_RECEIVE_MASK {receive_mask}\n")
+    header.write( f"#define {source_file.upper()}_CAN_MSG_RECEIVE_ID {receive_id}\n")
+    header.write( f"#define {source_file.upper()}_CAN_MSG_RECEIVE_MASK {receive_mask}\n")
     header.write( "\n")
     header.write( "\n")
 
@@ -66,8 +66,8 @@ for file in dbc_files:
         header.write( "/************************************************************/\n")
         header.write(f"// Message: {message.name}\n")
         header.write( "/************************************************************/\n")
-        header.write(f"#define CAN_MSG_{message.name} CAN_MSG_{message.name}\n")
-        header.write(f"#define CAN_MSG_{message.name}_FRAME_ID {hex(message.frame_id)}\n")
+        header.write(f"#define {source_file.upper()}_CAN_MSG_{message.name} {source_file.upper()}_CAN_MSG_{message.name}\n")
+        header.write(f"#define {source_file.upper()}_CAN_MSG_{message.name}_FRAME_ID {hex(message.frame_id)}\n")
         header.write( "\n")
         header.write( "typedef struct{\n")
         
@@ -106,37 +106,37 @@ for file in dbc_files:
             header.write(f"    // undef {bit_start}-{63} \n")
             header.write(f"    uint64_t undef:{64-bit_start};\n")
         header.write( "}")
-        header.write(f"CAN_MSG_{message.name}_t;\n")
+        header.write(f"{source_file.upper()}_CAN_MSG_{message.name}_t;\n")
 
         header.write("\n")
         for signal in message.signals:
             header.write(f"// Signal: {signal.name}\n")
             header.write(f"#define CAN_SIG_{signal.name} CAN_SIG_{signal.name}\n")
             if signal.is_signed:
-                header.write(f"#define CAN_MSG_{message.name}_CAN_SIG_{signal.name}_TRANSMISSION_TYPE int64_t\n")
+                header.write(f"#define {source_file.upper()}_CAN_MSG_{message.name}_CAN_SIG_{signal.name}_TRANSMISSION_TYPE int64_t\n")
             else:
-                header.write(f"#define CAN_MSG_{message.name}_CAN_SIG_{signal.name}_TRANSMISSION_TYPE int64_t\n")
+                header.write(f"#define {source_file.upper()}_CAN_MSG_{message.name}_CAN_SIG_{signal.name}_TRANSMISSION_TYPE int64_t\n")
             
             if signal.scale != None:
-                header.write(f"#define CAN_MSG_{message.name}_CAN_SIG_{signal.name}_SCALE {signal.scale}\n")
+                header.write(f"#define {source_file.upper()}_CAN_MSG_{message.name}_CAN_SIG_{signal.name}_SCALE {signal.scale}\n")
             else:
                 header.write( "#error \"the scale must be a number\"\n")
                 raise Exception(f"the scale of {signal.name} in {message.name} must be a number")
             
             if signal.offset != None:
-                header.write(f"#define CAN_MSG_{message.name}_CAN_SIG_{signal.name}_OFFSET {signal.offset}\n")
+                header.write(f"#define {source_file.upper()}_CAN_MSG_{message.name}_CAN_SIG_{signal.name}_OFFSET {signal.offset}\n")
             else:
                 header.write( "#error \"the offset must be a number\"\n")
                 raise Exception(f"the offset of {signal.name} in {message.name} must be a number")
             
             if signal.minimum != None:
-                header.write(f"#define CAN_MSG_{message.name}_CAN_SIG_{signal.name}_MINIMUM {signal.minimum}\n")
+                header.write(f"#define {source_file.upper()}_CAN_MSG_{message.name}_CAN_SIG_{signal.name}_MINIMUM {signal.minimum}\n")
             else:
                 header.write( "#error \"the minimum must be a number\"\n")
                 raise Exception(f"the minimum of {signal.name} in {message.name} must be a number")
             
             if signal.maximum != None and signal.maximum>signal.minimum:
-                header.write(f"#define CAN_MSG_{message.name}_CAN_SIG_{signal.name}_MAXIMUM {signal.maximum}\n")
+                header.write(f"#define {source_file.upper()}_CAN_MSG_{message.name}_CAN_SIG_{signal.name}_MAXIMUM {signal.maximum}\n")
             else:
                 header.write( "#error \"the maximum must be a number\"\n")
                 raise Exception(f"the maximum of {signal.name} in {message.name} must be a number and larger than minimum")
@@ -167,11 +167,29 @@ for file in dbc_files:
                 header.write(f"// Named Values to Signal: {signal.name}\n")
                 for named_value in signal.choices:
                     header.write(f"#define CAN_VALUE_{signal.choices[named_value]} CAN_VALUE_{signal.choices[named_value]}\n")
-                    header.write(f"#define CAN_MSG_{message.name}_CAN_SIG_{signal.name}_CAN_VALUE_{signal.choices[named_value]} {named_value}\n")
+                    header.write(f"#define {source_file.upper()}_CAN_MSG_{message.name}_CAN_SIG_{signal.name}_CAN_VALUE_{signal.choices[named_value]} {named_value}\n")
             
             header.write("\n")
 
 
+    header.write("enum{\n")
+    header.write(f"    {source_file.upper()}_CAN_MSG_IN_1_INDEX,\n")
+    header.write(f"    {source_file.upper()}_CAN_MSG_IN_2_INDEX,\n")
+    for message in dbc_inst.messages:
+        if system_name in message.senders:
+            header.write(f"    {source_file.upper()}_CAN_MSG_{message.name}_INDEX,\n")
+    header.write(f"    {source_file.upper()}_CAN_MAX_MSG,\n")
+    header.write("};\n\n")
+
+    header.write("""typedef struct{
+    uint32_t msg_id;
+    uint32_t mask;
+    CAN_MsgObjType msgType;
+    uint32_t  flags;
+    uint16_t  dlc;
+}MessageProprieties_t;\n\n""")
+    
+    header.write(f"extern const MessageProprieties_t {source_file.lower()}_can_messages_proprieties[{source_file.upper()}_CAN_MAX_MSG];")
 
     header.write( "\n")
     header.write( "\n")
@@ -209,3 +227,54 @@ for file in dbc_files:
     header.write( "\n")
     header.write( "#define CAN_GET_VALUE_BY_NAME( _CAN_MSG , _CAN_SIG , _CAN_VALUE ) \\\n")
     header.write( "( _CAN_MSG##_##_CAN_SIG##_##_CAN_VALUE )\n")
+
+    c_file = open(output_file_name + ".c", "w", encoding="utf-8")
+
+    c_file.write( "/************************************************************/\n")
+    c_file.write( "// Automatically generated C source file from CAN DBC file\n")
+    c_file.write(f"// Source file name: {source_file}.dbc\n")
+    c_file.write(f"// Date created: {datetime.now().strftime('%Y-%m-%d')}\n")
+    c_file.write( "/************************************************************/\n")
+    c_file.write( "\n")
+    c_file.write( "\n")
+
+    c_file.write(f"#include \"application.h\"\n")
+    c_file.write(f"#include \"{source_file}.h\"\n")
+
+    c_file.write(f"const MessageProprieties_t {source_file.lower()}_can_messages_proprieties[{source_file.upper()}_CAN_MAX_MSG] = ")
+    c_file.write("{\n")
+
+    c_file.write(f"    [{source_file.upper()}_CAN_MSG_IN_1_INDEX] = "+"{")
+    c_file.write(f"""
+        .msg_id  = 0x00ff0f00,
+        .mask    = 0x1f000fff,
+        .msgType = CAN_MSG_OBJ_TYPE_RX,
+        .flags   = CAN_MSG_OBJ_RX_INT_ENABLE|CAN_MSG_OBJ_USE_EXT_FILTER,
+        .dlc     = 8,
+""")
+    c_file.write("    },\n")
+    c_file.write(f"    [{source_file.upper()}_CAN_MSG_IN_2_INDEX] = "+"{")
+    c_file.write(f"""
+        .msg_id  = 0x00ff0f00,
+        .mask    = 0x1f000fff,
+        .msgType = CAN_MSG_OBJ_TYPE_RX,
+        .flags   = CAN_MSG_OBJ_RX_INT_ENABLE|CAN_MSG_OBJ_USE_EXT_FILTER,
+        .dlc     = 8,
+""")
+    c_file.write("    },\n")
+    for message in dbc_inst.messages:
+        if system_name in message.senders:
+            c_file.write(f"    [{source_file.upper()}_CAN_MSG_{message.name}_INDEX] = ")
+            c_file.write("{")
+            c_file.write(f"""
+        .msg_id = {source_file.upper()}_CAN_MSG_{message.name}_FRAME_ID,
+        .mask   = 0x00000000,
+        .msgType= CAN_MSG_OBJ_TYPE_TX,
+        .flags  = CAN_MSG_OBJ_NO_FLAGS,
+        .dlc    = 8,
+""")
+            c_file.write("    },\n")
+
+    c_file.write("};\n")
+
+    c_file.write( "\n")
