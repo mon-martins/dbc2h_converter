@@ -33,6 +33,10 @@ for file in dbc_files:
     header.write( "\n")
     header.write( "\n")
 
+    header.write(f"#ifndef _{source_file.upper()}_DBC_H_")
+    header.write("\n")
+    header.write(f"#define _{source_file.upper()}_DBC_H_")
+
     header.write( "\n")
     header.write( "\n")
     header.write( "/************************************************************/\n")
@@ -40,24 +44,48 @@ for file in dbc_files:
     header.write( "/************************************************************/\n")
     header.write( "\n")
 
-    mask_ones = 0x00000000
-    mask_zeros= 0x00000000
+    there_is_msg_ext = 0
+    mask_ones_ext = 0x00000000
+    mask_zeros_ext = 0x00000000
 
     for message in dbc_inst.messages:
-        if system_name in message.receivers:
-            mask_ones  |= message.frame_id
-            mask_zeros |= ~message.frame_id
+        if message.is_extended_frame:
+            there_is_msg_ext = 1
+            if system_name in message.receivers:
+                mask_ones_ext  |= message.frame_id
+                mask_zeros_ext |= ~message.frame_id
 
-    mask_ones  &= 0x00FFFF00
-    mask_zeros &= 0x00FFFF00
+    mask_ones_ext  &= 0x01FFFFFF
+    mask_zeros_ext &= 0x01FFFFFF
 
-    receive_id   = f"0x{mask_ones & 0x1FFFFFFF:08x}"
-    receive_mask = f"0x{(~(mask_ones^mask_zeros)&0x1FFFFFFF):08x}"
+    receive_id_ext   = f"0x{mask_ones_ext & 0x1FFFFFFF:08x}"
+    receive_mask_ext = f"0x{(~(mask_ones_ext^mask_zeros_ext)&0x1FFFFFFF):08x}"
+
+    there_is_msg_std = 0
+    mask_ones_std = 0x0000
+    mask_zeros_std = 0x0000
+
+    for message in dbc_inst.messages:
+        if not message.is_extended_frame:
+            there_is_msg_std = 1
+            if system_name in message.receivers:
+                mask_ones_std  |= message.frame_id
+                mask_zeros_std |= ~message.frame_id
+
+    mask_ones_std  &= 0x07FF
+    mask_zeros_std &= 0x07FF
+
+    receive_id_std   = f"0x{mask_ones_std & 0x07FF:04x}"
+    receive_mask_std = f"0x{(~(mask_ones_std^mask_zeros_std)&0x07FF):04x}"
 
     header.write( "\n")
     header.write( "\n")
-    header.write( f"#define {source_file.upper()}_CAN_MSG_RECEIVE_ID {receive_id}\n")
-    header.write( f"#define {source_file.upper()}_CAN_MSG_RECEIVE_MASK {receive_mask}\n")
+    if there_is_msg_ext:
+        header.write( f"#define {source_file.upper()}_CAN_MSG_RECEIVE_ID_EXT {receive_id_ext}\n")
+        header.write( f"#define {source_file.upper()}_CAN_MSG_RECEIVE_MASK_EXT {receive_mask_ext}\n")
+    if there_is_msg_std:
+        header.write( f"#define {source_file.upper()}_CAN_MSG_RECEIVE_ID_STD {receive_id_std}\n")
+        header.write( f"#define {source_file.upper()}_CAN_MSG_RECEIVE_MASK_STD {receive_mask_std}\n")
     header.write( "\n")
     header.write( "\n")
 
@@ -173,8 +201,10 @@ for file in dbc_files:
 
 
     header.write("enum{\n")
-    header.write(f"    {source_file.upper()}_CAN_MSG_IN_1_INDEX,\n")
-    header.write(f"    {source_file.upper()}_CAN_MSG_IN_2_INDEX,\n")
+    if there_is_msg_ext:
+        header.write(f"    {source_file.upper()}_CAN_MSG_EXT_IN_INDEX,\n")
+    if there_is_msg_std:
+        header.write(f"    {source_file.upper()}_CAN_MSG_STD_IN_INDEX,\n")
     for message in dbc_inst.messages:
         if system_name in message.senders:
             header.write(f"    {source_file.upper()}_CAN_MSG_{message.name}_INDEX,\n")
@@ -227,6 +257,8 @@ for file in dbc_files:
     header.write( "\n")
     header.write( "#define CAN_GET_VALUE_BY_NAME( _CAN_MSG , _CAN_SIG , _CAN_VALUE ) \\\n")
     header.write( "( _CAN_MSG##_##_CAN_SIG##_##_CAN_VALUE )\n")
+    header.write("\n\n")
+    header.write("#endif")
 
     c_file = open(output_file_name + ".c", "w", encoding="utf-8")
 
@@ -244,24 +276,27 @@ for file in dbc_files:
     c_file.write(f"const MessageProprieties_t {source_file.lower()}_can_messages_proprieties[{source_file.upper()}_CAN_MAX_MSG] = ")
     c_file.write("{\n")
 
-    c_file.write(f"    [{source_file.upper()}_CAN_MSG_IN_1_INDEX] = "+"{")
-    c_file.write(f"""
-        .msg_id  = 0x00ff0f00,
-        .mask    = 0x1f000fff,
+    if there_is_msg_std:
+        c_file.write(f"    [{source_file.upper()}_CAN_MSG_STD_IN_INDEX] = "+"{")
+        c_file.write(f"""
+        .msg_id  = {receive_id_std},
+        .mask    = {receive_mask_std},
+        .msgType = CAN_MSG_OBJ_TYPE_RX,
+        .flags   = CAN_MSG_OBJ_RX_INT_ENABLE|CAN_MSG_OBJ_USE_ID_FILTER,
+        .dlc     = 8,
+        """)
+        c_file.write("    },\n")
+    if there_is_msg_ext:
+        c_file.write(f"    [{source_file.upper()}_CAN_MSG_EXT_IN_INDEX] = "+"{")
+        c_file.write(f"""
+        .msg_id  = {receive_id_ext},
+        .mask    = {receive_mask_ext},
         .msgType = CAN_MSG_OBJ_TYPE_RX,
         .flags   = CAN_MSG_OBJ_RX_INT_ENABLE|CAN_MSG_OBJ_USE_EXT_FILTER,
         .dlc     = 8,
-""")
-    c_file.write("    },\n")
-    c_file.write(f"    [{source_file.upper()}_CAN_MSG_IN_2_INDEX] = "+"{")
-    c_file.write(f"""
-        .msg_id  = 0x00ff0f00,
-        .mask    = 0x1f000fff,
-        .msgType = CAN_MSG_OBJ_TYPE_RX,
-        .flags   = CAN_MSG_OBJ_RX_INT_ENABLE|CAN_MSG_OBJ_USE_EXT_FILTER,
-        .dlc     = 8,
-""")
-    c_file.write("    },\n")
+        """)
+        c_file.write("    },\n")
+
     for message in dbc_inst.messages:
         if system_name in message.senders:
             c_file.write(f"    [{source_file.upper()}_CAN_MSG_{message.name}_INDEX] = ")
