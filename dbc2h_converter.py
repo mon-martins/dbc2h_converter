@@ -200,11 +200,17 @@ for file in dbc_files:
             header.write("\n")
 
 
+    is_first = 1
     header.write("enum{\n")
     if there_is_msg_ext:
-        header.write(f"    {source_file.upper()}_CAN_MSG_EXT_IN_INDEX,\n")
+        header.write(f"    {source_file.upper()}_CAN_MSG_EXT_IN_INDEX=1,\n")
+        is_first = 1
     if there_is_msg_std:
-        header.write(f"    {source_file.upper()}_CAN_MSG_STD_IN_INDEX,\n")
+        if is_first:
+            header.write(f"    {source_file.upper()}_CAN_MSG_STD_IN_INDEX=1,\n")
+        else:
+            header.write(f"    {source_file.upper()}_CAN_MSG_STD_IN_INDEX,\n")
+
     for message in dbc_inst.messages:
         if system_name in message.senders:
             header.write(f"    {source_file.upper()}_CAN_MSG_{message.name}_INDEX,\n")
@@ -257,8 +263,9 @@ for file in dbc_files:
     header.write( "\n")
     header.write( "#define CAN_GET_VALUE_BY_NAME( _CAN_MSG , _CAN_SIG , _CAN_VALUE ) \\\n")
     header.write( "( _CAN_MSG##_##_CAN_SIG##_##_CAN_VALUE )\n")
-    header.write("\n\n")
+    header.write("\n")
     header.write("#endif")
+    header.write("\n")
 
     c_file = open(output_file_name + ".c", "w", encoding="utf-8")
 
@@ -292,7 +299,7 @@ for file in dbc_files:
         .msg_id  = {receive_id_ext},
         .mask    = {receive_mask_ext},
         .msgType = CAN_MSG_OBJ_TYPE_RX,
-        .flags   = CAN_MSG_OBJ_RX_INT_ENABLE|CAN_MSG_OBJ_USE_EXT_FILTER,
+        .flags   = CAN_MSG_OBJ_RX_INT_ENABLE|CAN_MSG_OBJ_USE_EXT_FILTER|CAN_MSG_OBJ_USE_ID_FILTER,
         .dlc     = 8,
         """)
         c_file.write("    },\n")
