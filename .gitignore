@@ -1,3 +1,5 @@
 *.dbc
 *.h
+*.c
 commit_comment.txt
+__pycache__
