@@ -152,7 +152,7 @@ typedef struct{
             else:
                 header.write( "#error \"the offset must be a number\"\n")
                 raise Exception(f"the offset of {signal.name} in {message.name} must be a number")
-            
+
             if signal.minimum != None:
                 header.write(f"#define {source_file.upper()}_CAN_MSG_{message.name}_{source_file.upper()}_CAN_SIG_{signal.name}_MINIMUM {signal.minimum}\n")
             else:
@@ -193,12 +193,22 @@ typedef struct{
                     header.write(f"#define {source_file.upper()}_CAN_VALUE_{signal.choices[named_value]} CAN_VALUE_{signal.choices[named_value]}\n")
                     header.write(f"#define {source_file.upper()}_CAN_MSG_{message.name}_{source_file.upper()}_CAN_SIG_{signal.name}_{source_file.upper()}_CAN_VALUE_{signal.choices[named_value]} {named_value}\n")
             
-            data_bit_position = signal.start
+
+
             data_length = signal.length
             data_endian = signal.byte_order
 
+            if (data_endian == 'big_endian'):
+                init_byte = int(signal.start/8)
+                big_pos = 7 - (signal.start%8)
+                end_pos_big = init_byte*8+big_pos+data_length-1
+                end_byte = int(end_pos_big/8)
+                data_bit_position = end_byte*8 + (7-end_pos_big%8)
+                # print(data_bit_position)
+            else:
+                data_bit_position = signal.start
+
             byte_id = int(data_bit_position/8)
-            byte_data_len = 8-data_bit_position%8
 
             if (data_endian == 'big_endian'):
                 increment = -1
@@ -208,8 +218,8 @@ typedef struct{
                 raise Exception(f"it wasn't possible to get the endianess of the signal")
 
             bits_to_concatenate = data_length
-
-            concatenated_bits = 8-data_bit_position%8
+            
+            concatenated_bits = min([bits_to_concatenate,8-data_bit_position%8])
 
             header.write(f"#define {source_file.upper()}_CAN_MSG_{message.name}_{source_file.upper()}_CAN_SIG_{signal.name}_GET_RAW_DATA(_CAN_RAW_DATA) \\\n")
 
@@ -221,10 +231,7 @@ typedef struct{
                 header.write(" | \\\n")
                 byte_id += increment
                 
-                if (bits_to_concatenate > 8):
-                    concatenated_bits = 8
-                else:
-                    concatenated_bits = bits_to_concatenate
+                concatenated_bits = min([8,bits_to_concatenate])
 
                 header.write(f" ( ( ( _CAN_RAW_DATA.byte_{byte_id}) & {ones_bits_mask(concatenated_bits)}) << {data_length-bits_to_concatenate} )")
                 bits_to_concatenate -= concatenated_bits
@@ -233,33 +240,25 @@ typedef struct{
 
 
             byte_id = int(data_bit_position/8)
-            byte_data_len = 8-data_bit_position%8
-
-            if (data_endian == "big_endian"):
-                increment = -1
-            elif (data_endian == "little_endian"):
-                increment = +1
 
             bits_to_concatenate = data_length
 
-            concatenated_bits = 8-data_bit_position%8
 
-            header.write(f"#define {source_file.upper()}_CAN_MSG_{message.name}_{source_file.upper()}_CAN_SIG_{signal.name}_GET_RAW_DATA( _CAN_RAW_DATA_TO_WRITE , _RAW_VALUE ) \\\n")
+            concatenated_bits = min([bits_to_concatenate,8-data_bit_position%8])
 
-            header.write(f"_CAN_RAW_DATA_TO_WRITE.byte_{byte_id} &= ({zeros_bits_mask(concatenated_bits,data_bit_position%8)}) \\\n")
-            header.write(f"_CAN_RAW_DATA_TO_WRITE.byte_{byte_id} |= ( ( _RAW_VALUE & {ones_bits_mask(concatenated_bits)} ) << {data_bit_position%8}) \\\n")
+            header.write(f"#define {source_file.upper()}_CAN_MSG_{message.name}_{source_file.upper()}_CAN_SIG_{signal.name}_WRITE_RAW_DATA( _CAN_RAW_DATA_TO_WRITE , _RAW_VALUE ) \\\n")
+
+            header.write(f"_CAN_RAW_DATA_TO_WRITE.byte_{byte_id} &= ({zeros_bits_mask(concatenated_bits,data_bit_position%8)});\\\n")
+            header.write(f"_CAN_RAW_DATA_TO_WRITE.byte_{byte_id} |= ( ( _RAW_VALUE & {ones_bits_mask(concatenated_bits)} ) << {data_bit_position%8}); \\\n")
 
             bits_to_concatenate -= concatenated_bits
             while(bits_to_concatenate>0):
                 byte_id += increment
                 
-                if (bits_to_concatenate > 8):
-                    concatenated_bits = 8
-                else:
-                    concatenated_bits = bits_to_concatenate
+                concatenated_bits = min([8,bits_to_concatenate])
 
-                header.write(f"_CAN_RAW_DATA_TO_WRITE.byte_{byte_id} &= {zeros_bits_mask(concatenated_bits)} \\\n")
-                header.write(f"_CAN_RAW_DATA_TO_WRITE.byte_{byte_id} |= ( _RAW_VALUE >> {data_length-bits_to_concatenate}) & ({ones_bits_mask(concatenated_bits)}) \\\n")
+                header.write(f"_CAN_RAW_DATA_TO_WRITE.byte_{byte_id} &= {zeros_bits_mask(concatenated_bits)}; \\\n")
+                header.write(f"_CAN_RAW_DATA_TO_WRITE.byte_{byte_id} |= ( _RAW_VALUE >> {data_length-bits_to_concatenate}) & ({ones_bits_mask(concatenated_bits)}); \\\n")
                 bits_to_concatenate -= concatenated_bits
 
             header.write("\n\n")
@@ -313,4 +312,90 @@ typedef struct{
     header.write( "#define CAN_GET_VALUE_BY_NAME( _CAN_MSG , _CAN_SIG , _CAN_VALUE ) \\\n")
     header.write( "( _CAN_MSG##_##_CAN_SIG##_##_CAN_VALUE )\n")
 
+# C2000
+# =============================================================================================================
+# =============================================================================================================
+# =============================================================================================================
+#     is_first = 1
+#     header.write("enum{\n")
+#     if there_is_msg_ext:
+#         header.write(f"    {source_file.upper()}_CAN_MSG_EXT_IN_INDEX=1,\n")
+#         is_first = 1
+#     if there_is_msg_std:
+#         if is_first:
+#             header.write(f"    {source_file.upper()}_CAN_MSG_STD_IN_INDEX=1,\n")
+#         else:
+#             header.write(f"    {source_file.upper()}_CAN_MSG_STD_IN_INDEX,\n")
 
+#     for message in dbc_inst.messages:
+#         if system_name in message.senders:
+#             header.write(f"    {source_file.upper()}_CAN_MSG_{message.name}_INDEX,\n")
+#     header.write(f"    {source_file.upper()}_CAN_MAX_MSG,\n")
+#     header.write("};\n\n")
+
+#     header.write("""typedef struct{
+#     uint32_t msg_id;
+#     uint32_t mask;
+#     CAN_MsgObjType msgType;
+#     uint32_t  flags;
+#     uint16_t  dlc;
+# }MessageProprieties_t;\n\n""")
+    
+#     header.write(f"extern const MessageProprieties_t {source_file.lower()}_can_messages_proprieties[{source_file.upper()}_CAN_MAX_MSG];")
+
+
+
+
+#     c_file = open(output_file_name + ".c", "w", encoding="utf-8")
+
+#     c_file.write( "/************************************************************/\n")
+#     c_file.write( "// Automatically generated C source file from CAN DBC file\n")
+#     c_file.write(f"// Source file name: {source_file}.dbc\n")
+#     c_file.write(f"// Date created: {datetime.now().strftime('%Y-%m-%d')}\n")
+#     c_file.write( "/************************************************************/\n")
+#     c_file.write( "\n")
+#     c_file.write( "\n")
+
+#     c_file.write(f"#include \"application.h\"\n")
+#     c_file.write(f"#include \"{source_file}.h\"\n")
+
+#     c_file.write(f"const MessageProprieties_t {source_file.lower()}_can_messages_proprieties[{source_file.upper()}_CAN_MAX_MSG] = ")
+#     c_file.write("{\n")
+
+#     if there_is_msg_std:
+#         c_file.write(f"    [{source_file.upper()}_CAN_MSG_STD_IN_INDEX] = "+"{")
+#         c_file.write(f"""
+#         .msg_id  = {receive_id_std},
+#         .mask    = {receive_mask_std},
+#         .msgType = CAN_MSG_OBJ_TYPE_RX,
+#         .flags   = CAN_MSG_OBJ_RX_INT_ENABLE|CAN_MSG_OBJ_USE_ID_FILTER,
+#         .dlc     = 8,
+#         """)
+#         c_file.write("    },\n")
+#     if there_is_msg_ext:
+#         c_file.write(f"    [{source_file.upper()}_CAN_MSG_EXT_IN_INDEX] = "+"{")
+#         c_file.write(f"""
+#         .msg_id  = {receive_id_ext},
+#         .mask    = {receive_mask_ext},
+#         .msgType = CAN_MSG_OBJ_TYPE_RX,
+#         .flags   = CAN_MSG_OBJ_RX_INT_ENABLE|CAN_MSG_OBJ_USE_EXT_FILTER|CAN_MSG_OBJ_USE_ID_FILTER,
+#         .dlc     = 8,
+#         """)
+#         c_file.write("    },\n")
+
+#     for message in dbc_inst.messages:
+#         if system_name in message.senders:
+#             c_file.write(f"    [{source_file.upper()}_CAN_MSG_{message.name}_INDEX] = ")
+#             c_file.write("{")
+#             c_file.write(f"""
+#         .msg_id = {source_file.upper()}_CAN_MSG_{message.name}_FRAME_ID,
+#         .mask   = 0x00000000,
+#         .msgType= CAN_MSG_OBJ_TYPE_TX,
+#         .flags  = CAN_MSG_OBJ_NO_FLAGS,
+#         .dlc    = 8,
+# """)
+#             c_file.write("    },\n")
+
+#     c_file.write("};\n")
+
+#     c_file.write( "\n")
