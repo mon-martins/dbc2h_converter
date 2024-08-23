@@ -139,7 +139,13 @@ typedef struct{
             header.write(f"// Signal: {signal.name}\n")
             header.write(f"#define {source_file.upper()}_CAN_SIG_{signal.name} {source_file.upper()}_CAN_SIG_{signal.name}\n")
             
-            # left to do type transmission diferetiation
+            if signal.is_float:
+                header.write(f"#define {source_file.upper()}_CAN_MSG_{message.name}_CAN_SIG_{signal.name}_TRANSMISSION_TYPE float\n")
+            else:
+                if signal.is_signed:
+                    header.write(f"#define {source_file.upper()}_CAN_MSG_{message.name}_CAN_SIG_{signal.name}_TRANSMISSION_TYPE int64_t\n")
+                else:
+                    header.write(f"#define {source_file.upper()}_CAN_MSG_{message.name}_CAN_SIG_{signal.name}_TRANSMISSION_TYPE uint64_t\n")
 
             if signal.scale != None:
                 header.write(f"#define {source_file.upper()}_CAN_MSG_{message.name}_{source_file.upper()}_CAN_SIG_{signal.name}_SCALE {signal.scale}\n")
@@ -272,17 +278,28 @@ typedef struct{
     header.write( "//arg _ENCODED_VALUE: encoded value \n")
     header.write( "//return VALUE: value decoded \n")
     header.write( "\n")
+
+    # Adapt to others transmission types
+    # sugestion of separate functions to translate uint to a desired transmition type
+
     header.write( "#define CAN_SIG_DECODE( _CAN_MSG , _CAN_SIG , _ENCODED_VALUE ) \\\n")
-    header.write( "( ( _ENCODED_VALUE ) * ( (float32_t) _CAN_MSG##_##_CAN_SIG##_SCALE) + _CAN_MSG##_##_CAN_SIG##_OFFSET\n")
+    header.write( "( ( (uint64_t) _ENCODED_VALUE ) * ( (float32_t) _CAN_MSG##_##_CAN_SIG##_SCALE) + _CAN_MSG##_##_CAN_SIG##_OFFSET )\n")
     header.write( "\n")
     header.write( "\n")
+    
+    
     header.write( "//arg _CAN_MSG: the name of the message with prefix CAN_MSG_ \n")
     header.write( "//arg _CAN_SIG: the name of the signal  with prefix CAN_SIG_ \n")
     header.write( "//arg _VALUE: the value to be encoded \n")
     header.write( "//return SIG_PAYLOAD: the value encoded \n")
     header.write( "\n")
+
+    # Adapt to others transmission types
+    # sugestion of separate functions to translate a desired transmition type to a uint
+     
     header.write( "#define CAN_SIG_ENCODE( _CAN_MSG , _CAN_SIG , _VALUE ) \\\n")
-    header.write( "( _CAN_MSG##_##_CAN_SIG##_TRANSMISSION_TYPE ) ( ( _VALUE - _CAN_MSG##_##_CAN_SIG##_OFFSET)/( (float) _CAN_MSG##_##_CAN_SIG##_SCALE ) )\n")
+    header.write( "( uint64_t ) ( ( _VALUE - _CAN_MSG##_##_CAN_SIG##_OFFSET)/( (float) _CAN_MSG##_##_CAN_SIG##_SCALE ) )\n")
+
     header.write( "\n")
     header.write( "\n")
     header.write( "//arg _CAN_MSG: the name of the message with prefix CAN_MSG_ \n")
@@ -306,39 +323,97 @@ typedef struct{
     header.write( "\n")
     header.write( "//arg _CAN_MSG: the name of the message with prefix CAN_MSG_ \n")
     header.write( "//arg _CAN_SIG: the name of the signal  with prefix CAN_SIG_ \n")
-    header.write( "//arg _CAN_VALUE: the name of the value with prefix CAN_VALUE \n")
-    header.write( "//return VALUE: value of the named value\n")
+    header.write( "//arg _CAN_RAW_DATA: Can_Raw_Data_t with the message payload \n")
+    header.write( "//return ENCODED_VALUE: value of the signal before decode\n")
     header.write( "\n")
-    header.write( "#define CAN_GET_VALUE_BY_NAME( _CAN_MSG , _CAN_SIG , _CAN_VALUE ) \\\n")
-    header.write( "( _CAN_MSG##_##_CAN_SIG##_##_CAN_VALUE )\n")
+    header.write( "#define CAN_GET_ENCODED_VALUE( _CAN_MSG , _CAN_SIG , _CAN_RAW_DATA ) \\\n")
+    header.write( "( _CAN_MSG##_##_CAN_SIG##_GET_RAW_DATA( _CAN_RAW_DATA ) )\n\n")
+
+    header.write( "\n")
+    header.write( "\n")
+    header.write( "//arg _CAN_MSG: the name of the message with prefix CAN_MSG_ \n")
+    header.write( "//arg _CAN_SIG: the name of the signal  with prefix CAN_SIG_ \n")
+    header.write( "//arg _CAN_RAW_DATA: Can_Raw_Data_t with the message payload \n")
+    header.write( "//return DECODED_VALUE: value of the signal decoded\n")
+    header.write( "\n")
+    header.write( "#define CAN_GET_DECODED_VALUE( _CAN_MSG , _CAN_SIG , _CAN_RAW_DATA ) \\\n")
+    header.write( " CAN_SIG_DECODE(  _CAN_MSG , _CAN_SIG , CAN_GET_ENCODED_VALUE( _CAN_MSG , _CAN_SIG , _CAN_RAW_DATA ) ) \n\n")
+
+    header.write( "\n")
+    header.write( "\n")
+    header.write( "//arg _CAN_MSG: the name of the message with prefix CAN_MSG_ \n")
+    header.write( "//arg _CAN_SIG: the name of the signal  with prefix CAN_SIG_ \n")
+    header.write( "//arg _CAN_RAW_DATA: Can_Raw_Data_t with the message payload \n")
+    header.write( "//arg _ENCODED_VALUE: encoded Value to Set On Payload \n")
+    header.write( "//return NONE")
+    header.write( "\n")
+    header.write( "#define CAN_WRITE_ENCODED_VALUE( _CAN_MSG , _CAN_SIG , _CAN_RAW_DATA , _ENCODED_VALUE ) \\\n")
+    header.write( "_CAN_MSG##_##_CAN_SIG##_WRITE_RAW_DATA( _CAN_RAW_DATA , _ENCODED_VALUE ) \n\n")
+
+    header.write( "\n")
+    header.write( "\n")
+    header.write( "//arg _CAN_MSG: the name of the message with prefix CAN_MSG_ \n")
+    header.write( "//arg _CAN_SIG: the name of the signal  with prefix CAN_SIG_ \n")
+    header.write( "//arg _CAN_RAW_DATA: Can_Raw_Data_t with the message payload \n")
+    header.write( "//arg _DECODED_VALUE: decoded Value to Set On Payload \n")
+    header.write( "//return NONE")
+    header.write( "\n")
+    header.write( "#define CAN_WRITE_DECODED_VALUE( _CAN_MSG , _CAN_SIG , _CAN_RAW_DATA , _DECODED_VALUE ) \\\n")
+    header.write( "CAN_WRITE_ENCODED_VALUE( _CAN_MSG , _CAN_SIG , _CAN_RAW_DATA , CAN_SIG_ENCODE( _CAN_MSG , _CAN_SIG , _DECODED_VALUE ) ) \n\n")
+
+# 
+
+#     header.write("""
+
+# #ifndef CAN_COMMUNICATION_INT_TYPE
+# #define CAN_COMMUNICATION_INT_TYPE int64_t
+# #endif
+
+# #ifndef CAN_COMMUNICATION_FLOAT_TYPE
+# #define CAN_COMMUNICATION_FLOAT_TYPE float32_t
+# #endif
+
+# #ifndef CAN_COMMUNICATION_DOUBLE_TYPE
+# #define CAN_COMMUNICATION_DOUBLE_TYPE float64_t
+# #endif
+
+# extern CAN_COMMUNICATION_INT_TYPE    value_cast_uint_to_int(uint64_t value, uint64_t length);
+# extern CAN_COMMUNICATION_FLOAT_TYPE  value_cast_uint_to_float(uint64_t value, uint64_t length);
+# extern CAN_COMMUNICATION_DOUBLE_TYPE value_cast_uint_to_double(uint64_t value, uint64_t length);
+# """)
+
+# MailBoxes
+
+    is_first = 1
+    header.write("enum{\n")
+    if there_is_msg_ext:
+        header.write(f"    {source_file.upper()}_CAN_MSG_EXT_IN_INDEX=1,\n")
+        is_first = 1
+    if there_is_msg_std:
+        if is_first:
+            header.write(f"    {source_file.upper()}_CAN_MSG_STD_IN_INDEX=1,\n")
+        else:
+            header.write(f"    {source_file.upper()}_CAN_MSG_STD_IN_INDEX,\n")
+
+    for message in dbc_inst.messages:
+        if system_name in message.senders:
+            header.write(f"    {source_file.upper()}_CAN_MSG_{message.name}_INDEX,\n")
+    header.write(f"    {source_file.upper()}_CAN_MAX_MSG,\n")
+    header.write("};\n\n")
 
 # C2000
 # =============================================================================================================
 # =============================================================================================================
 # =============================================================================================================
-#     is_first = 1
-#     header.write("enum{\n")
-#     if there_is_msg_ext:
-#         header.write(f"    {source_file.upper()}_CAN_MSG_EXT_IN_INDEX=1,\n")
-#         is_first = 1
-#     if there_is_msg_std:
-#         if is_first:
-#             header.write(f"    {source_file.upper()}_CAN_MSG_STD_IN_INDEX=1,\n")
-#         else:
-#             header.write(f"    {source_file.upper()}_CAN_MSG_STD_IN_INDEX,\n")
-
-#     for message in dbc_inst.messages:
-#         if system_name in message.senders:
-#             header.write(f"    {source_file.upper()}_CAN_MSG_{message.name}_INDEX,\n")
-#     header.write(f"    {source_file.upper()}_CAN_MAX_MSG,\n")
-#     header.write("};\n\n")
+    
 
 #     header.write("""typedef struct{
-#     uint32_t msg_id;
-#     uint32_t mask;
-#     CAN_MsgObjType msgType;
-#     uint32_t  flags;
-#     uint16_t  dlc;
+#     uint32_t         msg_id;
+#     CAN_MsgFrameType frame_type;
+#     CAN_MsgObjType   msg_type;
+#     uint32_t         mask;
+#     uint32_t         flags;
+#     uint16_t         dlc;
 # }MessageProprieties_t;\n\n""")
     
 #     header.write(f"extern const MessageProprieties_t {source_file.lower()}_can_messages_proprieties[{source_file.upper()}_CAN_MAX_MSG];")
@@ -356,8 +431,7 @@ typedef struct{
 #     c_file.write( "\n")
 #     c_file.write( "\n")
 
-#     c_file.write(f"#include \"application.h\"\n")
-#     c_file.write(f"#include \"{source_file}.h\"\n")
+#     c_file.write(f"#include \"{source_file}.h\"\n\n\n")
 
 #     c_file.write(f"const MessageProprieties_t {source_file.lower()}_can_messages_proprieties[{source_file.upper()}_CAN_MAX_MSG] = ")
 #     c_file.write("{\n")
@@ -365,32 +439,39 @@ typedef struct{
 #     if there_is_msg_std:
 #         c_file.write(f"    [{source_file.upper()}_CAN_MSG_STD_IN_INDEX] = "+"{")
 #         c_file.write(f"""
-#         .msg_id  = {receive_id_std},
-#         .mask    = {receive_mask_std},
-#         .msgType = CAN_MSG_OBJ_TYPE_RX,
-#         .flags   = CAN_MSG_OBJ_RX_INT_ENABLE|CAN_MSG_OBJ_USE_ID_FILTER,
-#         .dlc     = 8,
+#         .msg_id     = {receive_id_std},
+#         .frame_type = CAN_MSG_FRAME_STD,
+#         .msg_type   = CAN_MSG_OBJ_TYPE_RX,
+#         .mask       = {receive_mask_std},
+#         .flags      = CAN_MSG_OBJ_RX_INT_ENABLE|CAN_MSG_OBJ_USE_ID_FILTER,
+#         .dlc        = 8,
 #         """)
 #         c_file.write("    },\n")
 #     if there_is_msg_ext:
 #         c_file.write(f"    [{source_file.upper()}_CAN_MSG_EXT_IN_INDEX] = "+"{")
 #         c_file.write(f"""
-#         .msg_id  = {receive_id_ext},
-#         .mask    = {receive_mask_ext},
-#         .msgType = CAN_MSG_OBJ_TYPE_RX,
-#         .flags   = CAN_MSG_OBJ_RX_INT_ENABLE|CAN_MSG_OBJ_USE_EXT_FILTER|CAN_MSG_OBJ_USE_ID_FILTER,
-#         .dlc     = 8,
+#         .msg_id     = {receive_id_ext},
+#         .frame_type = CAN_MSG_FRAME_EXT,
+#         .msg_type   = CAN_MSG_OBJ_TYPE_RX,
+#         .mask       = {receive_mask_ext},
+#         .flags      = CAN_MSG_OBJ_RX_INT_ENABLE|CAN_MSG_OBJ_USE_EXT_FILTER|CAN_MSG_OBJ_USE_ID_FILTER,
+#         .dlc        = 8,
 #         """)
 #         c_file.write("    },\n")
 
 #     for message in dbc_inst.messages:
 #         if system_name in message.senders:
+#             if message.is_extended_frame:
+#                 frame_type = "CAN_MSG_FRAME_EXT"
+#             else:
+#                 frame_type = "CAN_MSG_FRAME_STD"
 #             c_file.write(f"    [{source_file.upper()}_CAN_MSG_{message.name}_INDEX] = ")
 #             c_file.write("{")
 #             c_file.write(f"""
 #         .msg_id = {source_file.upper()}_CAN_MSG_{message.name}_FRAME_ID,
+#         .frame_type = {frame_type},
+#         .msg_type= CAN_MSG_OBJ_TYPE_TX,
 #         .mask   = 0x00000000,
-#         .msgType= CAN_MSG_OBJ_TYPE_TX,
 #         .flags  = CAN_MSG_OBJ_NO_FLAGS,
 #         .dlc    = 8,
 # """)
