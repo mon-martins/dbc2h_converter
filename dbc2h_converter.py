@@ -480,4 +480,4 @@ typedef struct{
 
     c_file.write( "\n")
 
-    header.write(f"\n\n#endif")
+    header.write(f"\n\n#endif\n")
