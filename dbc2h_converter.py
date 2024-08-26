@@ -360,7 +360,17 @@ typedef struct{
     header.write( "#define CAN_WRITE_DECODED_VALUE( _CAN_MSG , _CAN_SIG , _CAN_RAW_DATA , _DECODED_VALUE ) \\\n")
     header.write( "CAN_WRITE_ENCODED_VALUE( _CAN_MSG , _CAN_SIG , _CAN_RAW_DATA , CAN_SIG_ENCODE( _CAN_MSG , _CAN_SIG , _DECODED_VALUE ) ) \n\n")
 
-# 
+    header.write( "\n")
+    header.write( "\n")
+    header.write( "//arg _CAN_MSG: the name of the message with prefix CAN_MSG_ \n")
+    header.write( "//arg _CAN_SIG: the name of the signal  with prefix CAN_SIG_ \n")
+    header.write( "//arg _CAN_RAW_DATA: Can_Raw_Data_t with the message payload \n")
+    header.write( "//arg _NAMED_VALUE: Named Value to Set On Payload \n")
+    header.write( "//return NONE")
+    header.write( "\n")
+    header.write( "#define CAN_WRITE_NAMED_VALUE( _CAN_MSG , _CAN_SIG , _CAN_RAW_DATA , _NAMED_VALUE ) \\\n")
+    header.write( "CAN_WRITE_ENCODED_VALUE( _CAN_MSG , _CAN_SIG , _CAN_RAW_DATA ,  CAN_GET_VALUE_BY_NAME( _CAN_MSG , _CAN_SIG , _CAN_VALUE) ) \n\n")
+
 
 #     header.write("""
 
