@@ -57,8 +57,8 @@ for file in dbc_files:
     header.write( "\n")
     header.write( "\n")
 
-    header.write(f"#ifndef {source_file.upper()}_H_\n")
-    header.write(f"#define {source_file.upper()}_H_")
+    header.write(f"#ifndef {source_file.upper()}_DBC_H_\n")
+    header.write(f"#define {source_file.upper()}_DBC_H_")
 
     header.write("""
 typedef struct{
@@ -271,6 +271,32 @@ typedef struct{
             header.write("\n\n")
 
 
+    is_first = 1
+    header.write("enum{\n")
+    if there_is_msg_ext:
+        header.write(f"    {source_file.upper()}_CAN_MSG_EXT_IN_INDEX=1,\n")
+        is_first = 1
+    if there_is_msg_std:
+        if is_first:
+            header.write(f"    {source_file.upper()}_CAN_MSG_STD_IN_INDEX=1,\n")
+        else:
+            header.write(f"    {source_file.upper()}_CAN_MSG_STD_IN_INDEX,\n")
+
+    for message in dbc_inst.messages:
+        if system_name in message.senders:
+            header.write(f"    {source_file.upper()}_CAN_MSG_{message.name}_INDEX,\n")
+    header.write(f"    {source_file.upper()}_CAN_MAX_MSG,\n")
+    header.write("};\n\n")
+
+    header.write("""typedef struct{
+    uint32_t msg_id;
+    uint32_t mask;
+    CAN_MsgObjType msgType;
+    uint32_t  flags;
+    uint16_t  dlc;
+}MessageProprieties_t;\n\n""")
+    
+    header.write(f"extern const MessageProprieties_t {source_file.lower()}_can_messages_proprieties[{source_file.upper()}_CAN_MAX_MSG];")
 
     header.write( "\n")
     header.write( "\n")
