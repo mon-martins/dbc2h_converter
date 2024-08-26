@@ -57,6 +57,9 @@ for file in dbc_files:
     header.write( "\n")
     header.write( "\n")
 
+    header.write(f"#ifndef {source_file.upper()}_H_\n")
+    header.write(f"#define {source_file.upper()}_H_")
+
     header.write("""
 typedef struct{
     uint64_t byte_0:8;
@@ -71,8 +74,6 @@ typedef struct{
 """
 
     )
-
-
 
     header.write( "\n")
     header.write( "\n")
@@ -386,14 +387,13 @@ typedef struct{
 
     is_first = 1
     header.write("enum{\n")
+
+    header.write(f"    {source_file.upper()}_CAN_MSG_NONE_INDEX=0U,\n")
+
     if there_is_msg_ext:
-        header.write(f"    {source_file.upper()}_CAN_MSG_EXT_IN_INDEX=1,\n")
-        is_first = 1
+        header.write(f"    {source_file.upper()}_CAN_MSG_EXT_IN_INDEX,\n")
     if there_is_msg_std:
-        if is_first:
-            header.write(f"    {source_file.upper()}_CAN_MSG_STD_IN_INDEX=1,\n")
-        else:
-            header.write(f"    {source_file.upper()}_CAN_MSG_STD_IN_INDEX,\n")
+        header.write(f"    {source_file.upper()}_CAN_MSG_STD_IN_INDEX,\n")
 
     for message in dbc_inst.messages:
         if system_name in message.senders:
@@ -480,3 +480,5 @@ typedef struct{
 #     c_file.write("};\n")
 
 #     c_file.write( "\n")
+
+    header.write(f"#endif")
