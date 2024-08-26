@@ -385,7 +385,6 @@ typedef struct{
 
 # MailBoxes
 
-    is_first = 1
     header.write("enum{\n")
 
     header.write(f"    {source_file.upper()}_CAN_MSG_NONE_INDEX=0U,\n")
