@@ -269,8 +269,6 @@ typedef struct{
                 bits_to_concatenate -= concatenated_bits
 
             header.write("\n\n")
-    
-    header.write(f"extern const MessageProprieties_t {source_file.lower()}_can_messages_proprieties[{source_file.upper()}_CAN_MAX_MSG];")
 
     header.write( "\n")
     header.write( "\n")
