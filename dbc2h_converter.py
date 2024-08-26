@@ -433,78 +433,78 @@ typedef struct{
 # =============================================================================================================
     
 
-#     header.write("""typedef struct{
-#     uint32_t         msg_id;
-#     CAN_MsgFrameType frame_type;
-#     CAN_MsgObjType   msg_type;
-#     uint32_t         mask;
-#     uint32_t         flags;
-#     uint16_t         dlc;
-# }MessageProprieties_t;\n\n""")
+    header.write("""typedef struct{
+    uint32_t         msg_id;
+    CAN_MsgFrameType frame_type;
+    CAN_MsgObjType   msg_type;
+    uint32_t         mask;
+    uint32_t         flags;
+    uint16_t         dlc;
+}MessageProprieties_t;\n\n""")
     
-#     header.write(f"extern const MessageProprieties_t {source_file.lower()}_can_messages_proprieties[{source_file.upper()}_CAN_MAX_MSG];")
+    header.write(f"extern const MessageProprieties_t {source_file.lower()}_can_messages_proprieties[{source_file.upper()}_CAN_MAX_MSG];")
 
 
 
 
-#     c_file = open(output_file_name + ".c", "w", encoding="utf-8")
+    c_file = open(output_file_name + ".c", "w", encoding="utf-8")
 
-#     c_file.write( "/************************************************************/\n")
-#     c_file.write( "// Automatically generated C source file from CAN DBC file\n")
-#     c_file.write(f"// Source file name: {source_file}.dbc\n")
-#     c_file.write(f"// Date created: {datetime.now().strftime('%Y-%m-%d')}\n")
-#     c_file.write( "/************************************************************/\n")
-#     c_file.write( "\n")
-#     c_file.write( "\n")
+    c_file.write( "/************************************************************/\n")
+    c_file.write( "// Automatically generated C source file from CAN DBC file\n")
+    c_file.write(f"// Source file name: {source_file}.dbc\n")
+    c_file.write(f"// Date created: {datetime.now().strftime('%Y-%m-%d')}\n")
+    c_file.write( "/************************************************************/\n")
+    c_file.write( "\n")
+    c_file.write( "\n")
 
-#     c_file.write(f"#include \"{source_file}.h\"\n\n\n")
+    c_file.write(f"#include \"{source_file}.h\"\n\n\n")
 
-#     c_file.write(f"const MessageProprieties_t {source_file.lower()}_can_messages_proprieties[{source_file.upper()}_CAN_MAX_MSG] = ")
-#     c_file.write("{\n")
+    c_file.write(f"const MessageProprieties_t {source_file.lower()}_can_messages_proprieties[{source_file.upper()}_CAN_MAX_MSG] = ")
+    c_file.write("{\n")
 
-#     if there_is_msg_std:
-#         c_file.write(f"    [{source_file.upper()}_CAN_MSG_STD_IN_INDEX] = "+"{")
-#         c_file.write(f"""
-#         .msg_id     = {receive_id_std},
-#         .frame_type = CAN_MSG_FRAME_STD,
-#         .msg_type   = CAN_MSG_OBJ_TYPE_RX,
-#         .mask       = {receive_mask_std},
-#         .flags      = CAN_MSG_OBJ_RX_INT_ENABLE|CAN_MSG_OBJ_USE_ID_FILTER,
-#         .dlc        = 8,
-#         """)
-#         c_file.write("    },\n")
-#     if there_is_msg_ext:
-#         c_file.write(f"    [{source_file.upper()}_CAN_MSG_EXT_IN_INDEX] = "+"{")
-#         c_file.write(f"""
-#         .msg_id     = {receive_id_ext},
-#         .frame_type = CAN_MSG_FRAME_EXT,
-#         .msg_type   = CAN_MSG_OBJ_TYPE_RX,
-#         .mask       = {receive_mask_ext},
-#         .flags      = CAN_MSG_OBJ_RX_INT_ENABLE|CAN_MSG_OBJ_USE_EXT_FILTER|CAN_MSG_OBJ_USE_ID_FILTER,
-#         .dlc        = 8,
-#         """)
-#         c_file.write("    },\n")
+    if there_is_msg_std:
+        c_file.write(f"    [{source_file.upper()}_CAN_MSG_STD_IN_INDEX] = "+"{")
+        c_file.write(f"""
+        .msg_id     = {receive_id_std},
+        .frame_type = CAN_MSG_FRAME_STD,
+        .msg_type   = CAN_MSG_OBJ_TYPE_RX,
+        .mask       = {receive_mask_std},
+        .flags      = CAN_MSG_OBJ_RX_INT_ENABLE|CAN_MSG_OBJ_USE_ID_FILTER,
+        .dlc        = 8,
+        """)
+        c_file.write("    },\n")
+    if there_is_msg_ext:
+        c_file.write(f"    [{source_file.upper()}_CAN_MSG_EXT_IN_INDEX] = "+"{")
+        c_file.write(f"""
+        .msg_id     = {receive_id_ext},
+        .frame_type = CAN_MSG_FRAME_EXT,
+        .msg_type   = CAN_MSG_OBJ_TYPE_RX,
+        .mask       = {receive_mask_ext},
+        .flags      = CAN_MSG_OBJ_RX_INT_ENABLE|CAN_MSG_OBJ_USE_EXT_FILTER|CAN_MSG_OBJ_USE_ID_FILTER,
+        .dlc        = 8,
+        """)
+        c_file.write("    },\n")
 
-#     for message in dbc_inst.messages:
-#         if system_name in message.senders:
-#             if message.is_extended_frame:
-#                 frame_type = "CAN_MSG_FRAME_EXT"
-#             else:
-#                 frame_type = "CAN_MSG_FRAME_STD"
-#             c_file.write(f"    [{source_file.upper()}_CAN_MSG_{message.name}_INDEX] = ")
-#             c_file.write("{")
-#             c_file.write(f"""
-#         .msg_id = {source_file.upper()}_CAN_MSG_{message.name}_FRAME_ID,
-#         .frame_type = {frame_type},
-#         .msg_type= CAN_MSG_OBJ_TYPE_TX,
-#         .mask   = 0x00000000,
-#         .flags  = CAN_MSG_OBJ_NO_FLAGS,
-#         .dlc    = 8,
-# """)
-#             c_file.write("    },\n")
+    for message in dbc_inst.messages:
+        if system_name in message.senders:
+            if message.is_extended_frame:
+                frame_type = "CAN_MSG_FRAME_EXT"
+            else:
+                frame_type = "CAN_MSG_FRAME_STD"
+            c_file.write(f"    [{source_file.upper()}_CAN_MSG_{message.name}_INDEX] = ")
+            c_file.write("{")
+            c_file.write(f"""
+        .msg_id = {source_file.upper()}_CAN_MSG_{message.name}_FRAME_ID,
+        .frame_type = {frame_type},
+        .msg_type= CAN_MSG_OBJ_TYPE_TX,
+        .mask   = 0x00000000,
+        .flags  = CAN_MSG_OBJ_NO_FLAGS,
+        .dlc    = 8,
+""")
+            c_file.write("    },\n")
 
-#     c_file.write("};\n")
+    c_file.write("};\n")
 
-#     c_file.write( "\n")
+    c_file.write( "\n")
 
     header.write(f"#endif")
