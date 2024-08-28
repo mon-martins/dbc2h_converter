@@ -70,7 +70,12 @@ typedef struct{
     uint64_t byte_5:8;
     uint64_t byte_6:8;
     uint64_t byte_7:8;
-}Can_Raw_Data_t;
+}Can_Bytes_Data_t;
+
+typedef union{
+    uint64_t         full_payload;
+    Can_Bytes_Data_t byte_data;
+}Can_Payload_t;
 """
 
     )
@@ -197,7 +202,7 @@ typedef struct{
             if signal.choices:
                 header.write(f"// Named Values to Signal: {signal.name}\n")
                 for named_value in signal.choices:
-                    header.write(f"#define {source_file.upper()}_CAN_VALUE_{signal.choices[named_value]} CAN_VALUE_{signal.choices[named_value]}\n")
+                    header.write(f"#define {source_file.upper()}_CAN_VALUE_{signal.choices[named_value]} {source_file.upper()}_CAN_VALUE_{signal.choices[named_value]}\n")
                     header.write(f"#define {source_file.upper()}_CAN_MSG_{message.name}_{source_file.upper()}_CAN_SIG_{signal.name}_{source_file.upper()}_CAN_VALUE_{signal.choices[named_value]} {named_value}\n")
             
 
@@ -228,9 +233,9 @@ typedef struct{
             
             concatenated_bits = min([bits_to_concatenate,8-data_bit_position%8])
 
-            header.write(f"#define {source_file.upper()}_CAN_MSG_{message.name}_{source_file.upper()}_CAN_SIG_{signal.name}_GET_RAW_DATA(_CAN_RAW_DATA) \\\n")
+            header.write(f"#define {source_file.upper()}_CAN_MSG_{message.name}_{source_file.upper()}_CAN_SIG_{signal.name}_GET_RAW_DATA(_CAN_BYTES_DATA) \\\n")
 
-            header.write(f"( ( _CAN_RAW_DATA.byte_{byte_id}) >> {data_bit_position%8} & {ones_bits_mask(concatenated_bits)} )")
+            header.write(f"( ( _CAN_BYTES_DATA.byte_{byte_id}) >> {data_bit_position%8} & {ones_bits_mask(concatenated_bits)} )")
 
             bits_to_concatenate -= concatenated_bits
 
@@ -240,7 +245,7 @@ typedef struct{
                 
                 concatenated_bits = min([8,bits_to_concatenate])
 
-                header.write(f" ( ( ( _CAN_RAW_DATA.byte_{byte_id}) & {ones_bits_mask(concatenated_bits)}) << {data_length-bits_to_concatenate} )")
+                header.write(f" ( ( ( _CAN_BYTES_DATA.byte_{byte_id}) & {ones_bits_mask(concatenated_bits)}) << {data_length-bits_to_concatenate} )")
                 bits_to_concatenate -= concatenated_bits
 
             header.write("\n\n")
@@ -253,10 +258,10 @@ typedef struct{
 
             concatenated_bits = min([bits_to_concatenate,8-data_bit_position%8])
 
-            header.write(f"#define {source_file.upper()}_CAN_MSG_{message.name}_{source_file.upper()}_CAN_SIG_{signal.name}_WRITE_RAW_DATA( _CAN_RAW_DATA_TO_WRITE , _RAW_VALUE ) \\\n")
+            header.write(f"#define {source_file.upper()}_CAN_MSG_{message.name}_{source_file.upper()}_CAN_SIG_{signal.name}_WRITE_RAW_DATA( _CAN_BYTES_DATA_TO_WRITE , _RAW_VALUE ) \\\n")
 
-            header.write(f"_CAN_RAW_DATA_TO_WRITE.byte_{byte_id} &= ({zeros_bits_mask(concatenated_bits,data_bit_position%8)});\\\n")
-            header.write(f"_CAN_RAW_DATA_TO_WRITE.byte_{byte_id} |= ( ( _RAW_VALUE & {ones_bits_mask(concatenated_bits)} ) << {data_bit_position%8}); \\\n")
+            header.write(f"_CAN_BYTES_DATA_TO_WRITE.byte_{byte_id} &= ({zeros_bits_mask(concatenated_bits,data_bit_position%8)});\\\n")
+            header.write(f"_CAN_BYTES_DATA_TO_WRITE.byte_{byte_id} |= ( ( _RAW_VALUE & {ones_bits_mask(concatenated_bits)} ) << {data_bit_position%8}); \\\n")
 
             bits_to_concatenate -= concatenated_bits
             while(bits_to_concatenate>0):
@@ -264,8 +269,8 @@ typedef struct{
                 
                 concatenated_bits = min([8,bits_to_concatenate])
 
-                header.write(f"_CAN_RAW_DATA_TO_WRITE.byte_{byte_id} &= {zeros_bits_mask(concatenated_bits)}; \\\n")
-                header.write(f"_CAN_RAW_DATA_TO_WRITE.byte_{byte_id} |= ( _RAW_VALUE >> {data_length-bits_to_concatenate}) & ({ones_bits_mask(concatenated_bits)}); \\\n")
+                header.write(f"_CAN_BYTES_DATA_TO_WRITE.byte_{byte_id} &= {zeros_bits_mask(concatenated_bits)}; \\\n")
+                header.write(f"_CAN_BYTES_DATA_TO_WRITE.byte_{byte_id} |= ( _RAW_VALUE >> {data_length-bits_to_concatenate}) & ({ones_bits_mask(concatenated_bits)}); \\\n")
                 bits_to_concatenate -= concatenated_bits
 
             header.write("\n\n")
@@ -322,54 +327,54 @@ typedef struct{
     header.write( "\n")
     header.write( "//arg _CAN_MSG: the name of the message with prefix CAN_MSG_ \n")
     header.write( "//arg _CAN_SIG: the name of the signal  with prefix CAN_SIG_ \n")
-    header.write( "//arg _CAN_RAW_DATA: Can_Raw_Data_t with the message payload \n")
+    header.write( "//arg _CAN_BYTES_DATA: Can_Bytes_Data_t with the message payload \n")
     header.write( "//return ENCODED_VALUE: value of the signal before decode\n")
     header.write( "\n")
-    header.write( "#define CAN_GET_ENCODED_VALUE( _CAN_MSG , _CAN_SIG , _CAN_RAW_DATA ) \\\n")
-    header.write( "( _CAN_MSG##_##_CAN_SIG##_GET_RAW_DATA( _CAN_RAW_DATA ) )\n\n")
+    header.write( "#define CAN_GET_ENCODED_VALUE( _CAN_MSG , _CAN_SIG , _CAN_BYTES_DATA ) \\\n")
+    header.write( "( _CAN_MSG##_##_CAN_SIG##_GET_RAW_DATA( _CAN_BYTES_DATA ) )\n\n")
 
     header.write( "\n")
     header.write( "\n")
     header.write( "//arg _CAN_MSG: the name of the message with prefix CAN_MSG_ \n")
     header.write( "//arg _CAN_SIG: the name of the signal  with prefix CAN_SIG_ \n")
-    header.write( "//arg _CAN_RAW_DATA: Can_Raw_Data_t with the message payload \n")
+    header.write( "//arg _CAN_BYTES_DATA: Can_Bytes_Data_t with the message payload \n")
     header.write( "//return DECODED_VALUE: value of the signal decoded\n")
     header.write( "\n")
-    header.write( "#define CAN_GET_DECODED_VALUE( _CAN_MSG , _CAN_SIG , _CAN_RAW_DATA ) \\\n")
-    header.write( " CAN_SIG_DECODE(  _CAN_MSG , _CAN_SIG , CAN_GET_ENCODED_VALUE( _CAN_MSG , _CAN_SIG , _CAN_RAW_DATA ) ) \n\n")
+    header.write( "#define CAN_GET_DECODED_VALUE( _CAN_MSG , _CAN_SIG , _CAN_BYTES_DATA ) \\\n")
+    header.write( " CAN_SIG_DECODE(  _CAN_MSG , _CAN_SIG , CAN_GET_ENCODED_VALUE( _CAN_MSG , _CAN_SIG , _CAN_BYTES_DATA ) ) \n\n")
 
     header.write( "\n")
     header.write( "\n")
     header.write( "//arg _CAN_MSG: the name of the message with prefix CAN_MSG_ \n")
     header.write( "//arg _CAN_SIG: the name of the signal  with prefix CAN_SIG_ \n")
-    header.write( "//arg _CAN_RAW_DATA: Can_Raw_Data_t with the message payload \n")
+    header.write( "//arg _CAN_BYTES_DATA: Can_Bytes_Data_t with the message payload \n")
     header.write( "//arg _ENCODED_VALUE: encoded Value to Set On Payload \n")
     header.write( "//return NONE")
     header.write( "\n")
-    header.write( "#define CAN_WRITE_ENCODED_VALUE( _CAN_MSG , _CAN_SIG , _CAN_RAW_DATA , _ENCODED_VALUE ) \\\n")
-    header.write( "_CAN_MSG##_##_CAN_SIG##_WRITE_RAW_DATA( _CAN_RAW_DATA , _ENCODED_VALUE ) \n\n")
+    header.write( "#define CAN_WRITE_ENCODED_VALUE( _CAN_MSG , _CAN_SIG , _CAN_BYTES_DATA , _ENCODED_VALUE ) \\\n")
+    header.write( "_CAN_MSG##_##_CAN_SIG##_WRITE_RAW_DATA( _CAN_BYTES_DATA , _ENCODED_VALUE ) \n\n")
 
     header.write( "\n")
     header.write( "\n")
     header.write( "//arg _CAN_MSG: the name of the message with prefix CAN_MSG_ \n")
     header.write( "//arg _CAN_SIG: the name of the signal  with prefix CAN_SIG_ \n")
-    header.write( "//arg _CAN_RAW_DATA: Can_Raw_Data_t with the message payload \n")
+    header.write( "//arg _CAN_BYTES_DATA: Can_Bytes_Data_t with the message payload \n")
     header.write( "//arg _DECODED_VALUE: decoded Value to Set On Payload \n")
     header.write( "//return NONE")
     header.write( "\n")
-    header.write( "#define CAN_WRITE_DECODED_VALUE( _CAN_MSG , _CAN_SIG , _CAN_RAW_DATA , _DECODED_VALUE ) \\\n")
-    header.write( "CAN_WRITE_ENCODED_VALUE( _CAN_MSG , _CAN_SIG , _CAN_RAW_DATA , CAN_SIG_ENCODE( _CAN_MSG , _CAN_SIG , _DECODED_VALUE ) ) \n\n")
+    header.write( "#define CAN_WRITE_DECODED_VALUE( _CAN_MSG , _CAN_SIG , _CAN_BYTES_DATA , _DECODED_VALUE ) \\\n")
+    header.write( "CAN_WRITE_ENCODED_VALUE( _CAN_MSG , _CAN_SIG , _CAN_BYTES_DATA , CAN_SIG_ENCODE( _CAN_MSG , _CAN_SIG , _DECODED_VALUE ) ) \n\n")
 
     header.write( "\n")
     header.write( "\n")
     header.write( "//arg _CAN_MSG: the name of the message with prefix CAN_MSG_ \n")
     header.write( "//arg _CAN_SIG: the name of the signal  with prefix CAN_SIG_ \n")
-    header.write( "//arg _CAN_RAW_DATA: Can_Raw_Data_t with the message payload \n")
+    header.write( "//arg _CAN_BYTES_DATA: Can_Bytes_Data_t with the message payload \n")
     header.write( "//arg _NAMED_VALUE: Named Value to Set On Payload \n")
     header.write( "//return NONE")
     header.write( "\n")
-    header.write( "#define CAN_WRITE_NAMED_VALUE( _CAN_MSG , _CAN_SIG , _CAN_RAW_DATA , _NAMED_VALUE ) \\\n")
-    header.write( "CAN_WRITE_ENCODED_VALUE( _CAN_MSG , _CAN_SIG , _CAN_RAW_DATA ,  CAN_GET_VALUE_BY_NAME( _CAN_MSG , _CAN_SIG , _CAN_VALUE) ) \n\n")
+    header.write( "#define CAN_WRITE_NAMED_VALUE( _CAN_MSG , _CAN_SIG , _CAN_BYTES_DATA , _NAMED_VALUE ) \\\n")
+    header.write( "CAN_WRITE_ENCODED_VALUE( _CAN_MSG , _CAN_SIG , _CAN_BYTES_DATA ,  CAN_GET_VALUE_BY_NAME( _CAN_MSG , _CAN_SIG , _NAMED_VALUE) ) \n\n")
 
 
 #     header.write("""
@@ -438,6 +443,7 @@ typedef struct{
     c_file.write( "\n")
     c_file.write( "\n")
 
+    c_file.write(f"#include \"application.h\"\n")
     c_file.write(f"#include \"{source_file}.h\"\n\n\n")
 
     c_file.write(f"const MessageProprieties_t {source_file.lower()}_can_messages_proprieties[{source_file.upper()}_CAN_MAX_MSG] = ")
