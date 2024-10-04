@@ -98,8 +98,8 @@ typedef union{
                 mask_ones_ext  |= message.frame_id
                 mask_zeros_ext |= ~message.frame_id
 
-    mask_ones_ext  &= 0x01FFFFFF
-    mask_zeros_ext &= 0x01FFFFFF
+    mask_ones_ext  &= 0x1FFFFFFF
+    mask_zeros_ext &= 0x1FFFFFFF
 
     receive_id_ext   = f"0x{mask_ones_ext & 0x1FFFFFFF:08x}"
     receive_mask_ext = f"0x{(~(mask_ones_ext^mask_zeros_ext)&0x1FFFFFFF):08x}"
